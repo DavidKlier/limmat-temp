@@ -4,7 +4,12 @@ Daily fetch of water temperatures at the Letten bathing spots in Zurich, via the
 
 ## What it does
 
-A GitHub Actions workflow runs every day at 10:00 CEST and commits the current water temperatures as `limmat_temp.json` to this repository. The JSON is then read by a Power Automate flow that displays the data in the gebana intranet.
+A GitHub Actions workflow runs every day at 10:00 CEST and:
+1. Fetches current water temperatures from the Stadt Zürich XML API
+2. Commits the result as `limmat_temp.json` to this repository
+3. Uploads the JSON to OneDrive via Microsoft Graph API
+
+The JSON in OneDrive is read by a Power Automate flow that displays the data in the gebana intranet.
 
 ## Output format
 
@@ -35,6 +40,19 @@ A GitHub Actions workflow runs every day at 10:00 CEST and commits the current w
 | `flb6939` | Flussbad Oberer Letten |
 | `flb8803` | Flussbad Unterer Letten |
 
+## Configuration
+
+The following GitHub Secrets are required:
+
+| Secret | Description |
+|---|---|
+| `AZURE_TENANT_ID` | gebana Azure AD Tenant ID |
+| `AZURE_CLIENT_ID` | App registration client ID |
+| `AZURE_CLIENT_SECRET` | App registration client secret |
+| `ONEDRIVE_USER` | OneDrive user UPN (e.g. `d.klier@gebana.com`) |
+
+The Azure AD app requires **Application permission** `Files.ReadWrite.All` with admin consent.
+
 ## Manual trigger
 
-The workflow can also be triggered manually via GitHub Actions → "Fetch Limmat Temperature" → "Run workflow".
+The workflow can be triggered manually via GitHub Actions → "Fetch Limmat Temperature" → "Run workflow".
