@@ -10,49 +10,54 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - run: pip install requests
-
-      - run: python LimmatTempFetcher.py
-
-      - name: Commit JSON
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/DavidKlier/limmat-temp.git
-          git add limmat_temp.json
-          git diff --cached --quiet || git commit -m "Update limmat_temp.json"
-          git push
-
-      - name: Send JSON via email
+      - name: Fetch and send temperature data
         env:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
         run: |
           python3 - << 'EOF'
-          import smtplib, os
+          import requests, json, smtplib, os
+          import xml.etree.ElementTree as ET
+          from datetime import datetime
           from email.mime.text import MIMEText
-          with open("limmat_temp.json") as f:
-              body = f.read()
-          msg = MIMEText(body, "plain", "utf-8")
+
+          xml_url = "https://www.stadt-zuerich.ch/stzh/bathdatadownload"
+          relevante_poiids = ["flb6939", "flb8803"]
+
+          response = requests.get(xml_url)
+          response.raise_for_status()
+          root = ET.fromstring(response.content)
+          ergebnisse = []
+
+          for bad in root.findall(".//bath"):
+              poiid = bad.findtext("poiid", "").strip()
+              if poiid in relevante_poiids:
+                  name = bad.findtext("title", "").strip()
+                  temperature = bad.findtext("temperatureWater", "").strip()
+                  timestamp = bad.findtext("dateModified", "").strip()
+                  ergebnisse.append({
+                      "name": name,
+                      "temperature": f"{temperature} °C" if temperature else "n/a",
+                      "timestamp": timestamp
+                  })
+
+          output = json.dumps({
+              "abgerufen_am": datetime.now().isoformat(),
+              "daten": ergebnisse
+          }, ensure_ascii=False, indent=2)
+
+          print(output)
+
+          msg = MIMEText(output, "plain", "utf-8")
           msg["Subject"] = "[limmat-temp] Temperaturdaten"
           msg["From"] = os.environ["SENDGRID_FROM_EMAIL"]
           msg["To"] = "d.klier@gebana.com"
+
           with smtplib.SMTP_SSL("smtp.sendgrid.net", 465) as server:
               server.login("apikey", os.environ["SENDGRID_API_KEY"])
               server.send_message(msg)
+
           print("✅ Email gesendet.")
           EOF
