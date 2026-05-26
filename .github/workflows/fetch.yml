@@ -1,0 +1,31 @@
+name: Fetch Limmat Temperature
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # 10:00 Uhr CEST (UTC+2, Mai–Sep)
+  workflow_dispatch:      # manueller Start möglich
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests
+
+      - run: python LimmatTempFetcher.py
+
+      - name: Commit JSON
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add limmat_temp.json
+          git diff --cached --quiet || git commit -m "Update limmat_temp.json"
+          git push
