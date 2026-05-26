@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 8 * * *'  # 10:00 Uhr CEST (UTC+2, Mai–Sep)
   workflow_dispatch:      # manueller Start möglich
+  push:
+    branches: [main]     # temporär zum Testen
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -36,10 +38,10 @@ jobs:
       - name: Send JSON via email
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp-relay.brevo.com
-          server_port: 587
-          secure: false
-          username: ${{ secrets.SENDGRID_FROM_EMAIL }}
+          server_address: smtp.sendgrid.net
+          server_port: 465
+          secure: true
+          username: apikey
           password: ${{ secrets.SENDGRID_API_KEY }}
           subject: "[limmat-temp] Temperaturdaten"
           to: d.klier@gebana.com
