@@ -2,7 +2,6 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import json
-import os
 
 xml_url = "https://www.stadt-zuerich.ch/stzh/bathdatadownload"
 output_path = "limmat_temp.json"
@@ -38,43 +37,5 @@ try:
     print("✅ Temperaturdaten gespeichert.")
 
 except Exception as e:
-    print(f"❌ Fehler beim Abrufen: {e}")
+    print(f"❌ Fehler beim Verarbeiten: {e}")
     raise
-
-# OneDrive-Upload via Microsoft Graph API (Refresh Token Flow)
-tenant_id = os.environ.get("AZURE_TENANT_ID")
-client_id = os.environ.get("AZURE_CLIENT_ID")
-refresh_token = os.environ.get("AZURE_REFRESH_TOKEN")
-onedrive_user = os.environ.get("ONEDRIVE_USER")
-
-if all([tenant_id, client_id, refresh_token, onedrive_user]):
-    try:
-        token_response = requests.post(
-            f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
-            data={
-                "grant_type": "refresh_token",
-                "client_id": client_id,
-                "refresh_token": refresh_token,
-                "scope": "https://graph.microsoft.com/Files.ReadWrite offline_access",
-            },
-        )
-        token_response.raise_for_status()
-        access_token = token_response.json()["access_token"]
-
-        with open(output_path, "rb") as f:
-            upload_response = requests.put(
-                f"https://graph.microsoft.com/v1.0/users/{onedrive_user}/drive/root:/Coding/limmat_temp.json:/content",
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "Content-Type": "application/json",
-                },
-                data=f,
-            )
-        upload_response.raise_for_status()
-        print("✅ OneDrive-Upload erfolgreich.")
-
-    except Exception as e:
-        print(f"❌ Fehler beim OneDrive-Upload: {e}")
-        raise
-else:
-    print("ℹ️  Keine Azure-Credentials gefunden, OneDrive-Upload übersprungen.")
