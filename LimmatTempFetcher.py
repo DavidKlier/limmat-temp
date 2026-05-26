@@ -41,21 +41,21 @@ except Exception as e:
     print(f"❌ Fehler beim Abrufen: {e}")
     raise
 
-# OneDrive-Upload via Microsoft Graph API
+# OneDrive-Upload via Microsoft Graph API (Refresh Token Flow)
 tenant_id = os.environ.get("AZURE_TENANT_ID")
 client_id = os.environ.get("AZURE_CLIENT_ID")
-client_secret = os.environ.get("AZURE_CLIENT_SECRET")
-onedrive_user = os.environ.get("ONEDRIVE_USER")  # d.klier@gebana.com
+refresh_token = os.environ.get("AZURE_REFRESH_TOKEN")
+onedrive_user = os.environ.get("ONEDRIVE_USER")
 
-if all([tenant_id, client_id, client_secret, onedrive_user]):
+if all([tenant_id, client_id, refresh_token, onedrive_user]):
     try:
         token_response = requests.post(
             f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
             data={
-                "grant_type": "client_credentials",
+                "grant_type": "refresh_token",
                 "client_id": client_id,
-                "client_secret": client_secret,
-                "scope": "https://graph.microsoft.com/.default",
+                "refresh_token": refresh_token,
+                "scope": "https://graph.microsoft.com/Files.ReadWrite offline_access",
             },
         )
         token_response.raise_for_status()
