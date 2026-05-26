@@ -36,13 +36,13 @@ jobs:
       - name: Send JSON via email
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp.gmail.com
+          server_address: smtp.sendgrid.net
           server_port: 465
           secure: true
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
+          username: apikey
+          password: ${{ secrets.SENDGRID_API_KEY }}
           subject: "[limmat-temp] Temperaturdaten"
           to: d.klier@gebana.com
-          from: ${{ secrets.SMTP_USERNAME }}
+          from: ${{ secrets.SENDGRID_FROM_EMAIL }}
           body: file://limmat_temp.json
           content_type: text/plain
