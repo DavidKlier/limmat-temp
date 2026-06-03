@@ -1,11 +1,7 @@
 name: Fetch Limmat Temperature
 
 on:
-  schedule:
-    - cron: '0 5 * * *'   # 07:00 CEST (UTC+2, Mai–Sep)
-    - cron: '0 9 * * *'   # 11:00 CEST
-    - cron: '0 13 * * *'  # 15:00 CEST
-  workflow_dispatch:      # manueller Start möglich
+  workflow_dispatch:      # getriggert via cron-job.org (GitHub-Scheduler ist unzuverlässig für inaktive Repos)
 
 jobs:
   fetch:
