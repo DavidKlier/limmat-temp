@@ -57,7 +57,18 @@ jobs:
               },
           )
           token_response.raise_for_status()
-          access_token = token_response.json()["access_token"]
+          tok = token_response.json()
+          access_token = tok["access_token"]
+
+          # Azure rotiert den Refresh Token bei jedem Refresh. Den neuen für den
+          # nächsten Lauf rausschreiben — der nachgelagerte Step persistiert ihn
+          # ins GitHub Secret. Ohne das altert das statische Secret und failt
+          # irgendwann mit HTTP 400 (invalid_grant).
+          new_refresh_token = tok.get("refresh_token")
+          if new_refresh_token:
+              with open("new_refresh_token.txt", "w") as f:
+                  f.write(new_refresh_token)
+              print("ℹ️  Neuer Refresh Token erhalten (wird zurückgeschrieben).")
 
           upload_response = requests.put(
               f"https://graph.microsoft.com/v1.0/me/drive/root:/Coding/limmat_temp.json:/content",
@@ -70,3 +81,25 @@ jobs:
           upload_response.raise_for_status()
           print("✅ OneDrive-Upload erfolgreich.")
           EOF
+
+      - name: Persist rotated refresh token
+        # always(): Azure hat den alten Token beim Refresh bereits konsumiert/rotiert.
+        # Der neue muss auch dann zurückgeschrieben werden, wenn der Upload-Step
+        # oben fehlschlägt — sonst nutzt der nächste Lauf einen ungültigen Token.
+        if: always()
+        continue-on-error: true   # Token-Rückschreiben darf den Fetch-Job nie failen lassen
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_PAT }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "ℹ️  GH_SECRETS_PAT nicht gesetzt – Token-Rückschreiben übersprungen."
+            echo "    (Workflow funktioniert weiter, aber das Refresh-Token-Secret altert manuell.)"
+            exit 0
+          fi
+          if [ ! -s new_refresh_token.txt ]; then
+            echo "ℹ️  Kein neuer Refresh Token vorhanden – nichts zurückzuschreiben."
+            exit 0
+          fi
+          gh secret set AZURE_REFRESH_TOKEN --repo "${{ github.repository }}" < new_refresh_token.txt
+          echo "✅ Rotierter Refresh Token ins Secret zurückgeschrieben."
+          shred -u new_refresh_token.txt 2>/dev/null || rm -f new_refresh_token.txt

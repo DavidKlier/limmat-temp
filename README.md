@@ -67,8 +67,9 @@ cron-job.org sends a `POST` to the GitHub API at 07:00, 11:00, 15:00 CEST (= 05:
 |--------|-------------|
 | `AZURE_TENANT_ID` | gebana Azure AD Tenant ID |
 | `AZURE_CLIENT_ID` | App-ID of the `gebLimmatTemp` Azure AD app |
-| `AZURE_REFRESH_TOKEN` | Delegated refresh token (generated via `setup_token.py`) |
+| `AZURE_REFRESH_TOKEN` | Delegated refresh token (generated via `setup_token.py`; rotated and written back automatically after each run) |
 | `ONEDRIVE_USER` | `d.klier@gebana.com` |
+| `GH_SECRETS_PAT` | Fine-grained PAT with `Secrets: read and write` on this repo, used to write the rotated refresh token back. Optional — without it the fetch still runs, but `AZURE_REFRESH_TOKEN` ages and must eventually be renewed manually. |
 
 ## Azure AD app (`gebLimmatTemp`)
 
@@ -77,17 +78,23 @@ cron-job.org sends a `POST` to the GitHub API at 07:00, 11:00, 15:00 CEST (= 05:
 - Allow public client flows: enabled
 - Conditional Access exception: granted
 
-The workflow uses a delegated refresh token (not a client secret) to authenticate as the user. The token refreshes itself on every run — as long as the workflow runs regularly, it stays valid indefinitely.
+The workflow uses a delegated refresh token (not a client secret) to authenticate as the user. Azure rotates the refresh token on every refresh; the workflow writes the new token back into the `AZURE_REFRESH_TOKEN` secret after each run (step "Persist rotated refresh token", requires `GH_SECRETS_PAT`). As long as the workflow runs regularly, the token stays valid indefinitely.
 
 ## Renewing the refresh token
 
-If the token ever expires (e.g. after a long pause):
+Manual renewal is only needed if Microsoft invalidates the token server-side (password change, MFA/Conditional Access change, admin revoke) — symptom: every run fails with `HTTPError: 400 ... /oauth2/v2.0/token` while the data fetch before it still succeeds.
 
 ```bash
 python3 ~/Claude/limmat-temp/setup_token.py
 ```
 
 Open the printed URL, enter the device code, log in → copy the new refresh token into the GitHub Secret `AZURE_REFRESH_TOKEN`.
+
+The app is single-tenant, so the device-code flow needs the explicit tenant ID (the `organizations` authority returns `AADSTS50059`). Resolve it from the domain without secret access:
+
+```bash
+curl -s https://login.microsoftonline.com/gebana.com/v2.0/.well-known/openid-configuration | grep -o '"issuer":"[^"]*"'
+```
 
 ## Power Automate
 
